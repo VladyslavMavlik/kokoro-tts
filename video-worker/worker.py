@@ -53,7 +53,7 @@ def extract_filename(url):
     return os.path.basename(path)
 
 
-def render_video(work_dir, params):
+def render_video(work_dir, params, frame_ext=".jpg"):
     """Render video using FFmpeg with NVENC"""
     frames_dir = work_dir / "frames"
     audio_file = work_dir / "audio"
@@ -64,10 +64,11 @@ def render_video(work_dir, params):
     resolution = params.get("resolution", "1080x1920")
     codec = params.get("codec", "h264_nvenc")
 
-    # Count frames
-    frame_files = sorted(frames_dir.glob("*.jpg")) + sorted(frames_dir.glob("*.png"))
+    # Count frames - use the extension we know we downloaded
+    frame_pattern = f"*{frame_ext}"
+    frame_files = sorted(frames_dir.glob(frame_pattern))
     if not frame_files:
-        raise ValueError("No frames found!")
+        raise ValueError(f"No frames found with pattern {frame_pattern}!")
 
     print(f"🎬 Rendering {len(frame_files)} frames at {fps}fps, resolution {resolution}")
 
@@ -85,10 +86,11 @@ def render_video(work_dir, params):
             "-hwaccel_output_format", "cuda"
         ]
 
+    # Input frames with correct extension
+    input_pattern = f"%06d{frame_ext}"
     cmd += [
         "-framerate", str(fps),
-        "-pattern_type", "glob",
-        "-i", str(frames_dir / "*.jpg")
+        "-i", str(frames_dir / input_pattern)
     ]
 
     # Video filter chain
@@ -211,8 +213,17 @@ def process_job(job):
     post_status(progress_url, {"percent": 10, "message": "Downloading inputs..."})
 
     # Download frames
+    frame_ext = None
     for idx, url in enumerate(inputs.get("frames", []), start=1):
-        ext = ".jpg" if url.lower().endswith(".jpg") else ".png"
+        # Detect extension from URL
+        if url.lower().endswith(".jpg") or url.lower().endswith(".jpeg"):
+            ext = ".jpg"
+        else:
+            ext = ".png"
+
+        if frame_ext is None:
+            frame_ext = ext  # Remember first frame extension
+
         download_file(url, frames_dir / f"{idx:06d}{ext}")
 
     # Download audio (optional)
@@ -238,8 +249,8 @@ def process_job(job):
 
     post_status(progress_url, {"percent": 30, "message": "Rendering video..."})
 
-    # Render video
-    output_file = render_video(work_dir, params)
+    # Render video (pass frame extension)
+    output_file = render_video(work_dir, params, frame_ext or ".jpg")
 
     post_status(progress_url, {"percent": 90, "message": "Uploading result..."})
 
