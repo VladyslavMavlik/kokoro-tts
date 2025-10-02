@@ -72,31 +72,54 @@ def render_video(work_dir, params):
     print(f"🎬 Rendering {len(frame_files)} frames at {fps}fps, resolution {resolution}")
 
     # Build FFmpeg command
-    cmd = [
-        "ffmpeg", "-y",
-        "-init_hw_device", "cuda=cu:0",
-        "-filter_hw_device", "cu",
-        "-hwaccel", "cuda",
-        "-hwaccel_output_format", "cuda",
+    # Try GPU encoding first, fallback to CPU if fails
+    use_gpu = codec == "h264_nvenc"
+
+    cmd = ["ffmpeg", "-y"]
+
+    if use_gpu:
+        cmd += [
+            "-init_hw_device", "cuda=cu:0",
+            "-filter_hw_device", "cu",
+            "-hwaccel", "cuda",
+            "-hwaccel_output_format", "cuda"
+        ]
+
+    cmd += [
         "-framerate", str(fps),
-        "-i", str(frames_dir / "%06d.jpg")
+        "-pattern_type", "glob",
+        "-i", str(frames_dir / "*.jpg")
     ]
 
     # Video filter chain
-    vf = [f"scale_npp={resolution}:interp_algo=lanczos"]
+    if use_gpu:
+        vf = [f"scale_npp={resolution}:interp_algo=lanczos"]
+    else:
+        # CPU fallback
+        w, h = resolution.split('x')
+        vf = [f"scale={w}:{h}"]
 
     # Add person overlay if exists
     if person_file.exists():
         print("👤 Adding person overlay")
         cmd += ["-i", str(person_file)]
-        # Use CPU overlay (simpler, works reliably)
-        vf = [
-            f"scale_npp={resolution}:interp_algo=lanczos",
-            "hwdownload,format=rgba",
-            "overlay=(W-w)/2:(H-h)/2",  # Center overlay
-            "format=yuv420p",
-            "hwupload_cuda"
-        ]
+        if use_gpu:
+            # GPU overlay
+            vf = [
+                f"scale_npp={resolution}:interp_algo=lanczos",
+                "hwdownload,format=rgba",
+                "overlay=(W-w)/2:(H-h)/2",  # Center overlay
+                "format=yuv420p",
+                "hwupload_cuda"
+            ]
+        else:
+            # CPU overlay
+            w, h = resolution.split('x')
+            vf = [
+                f"scale={w}:{h}",
+                "overlay=(W-w)/2:(H-h)/2",
+                "format=yuv420p"
+            ]
 
     # Add audio if exists
     if audio_file.exists():
@@ -104,16 +127,27 @@ def render_video(work_dir, params):
         cmd += ["-i", str(audio_file), "-shortest"]
 
     # Add video filters
-    cmd += [
-        "-vf", ",".join(vf),
-        "-c:v", codec,
-        "-preset", "p7",
-        "-rc", "vbr_hq",
-        "-cq", "19",
-        "-b:v", "15M",
-        "-maxrate", "25M",
-        "-bufsize", "50M"
-    ]
+    cmd += ["-vf", ",".join(vf)]
+
+    # Video encoding settings
+    if use_gpu:
+        cmd += [
+            "-c:v", codec,
+            "-preset", "p7",
+            "-rc", "vbr_hq",
+            "-cq", "19",
+            "-b:v", "15M",
+            "-maxrate", "25M",
+            "-bufsize", "50M"
+        ]
+    else:
+        # CPU fallback (libx264)
+        cmd += [
+            "-c:v", "libx264",
+            "-preset", "medium",
+            "-crf", "23",
+            "-pix_fmt", "yuv420p"
+        ]
 
     # Add audio codec if audio exists
     if audio_file.exists():
