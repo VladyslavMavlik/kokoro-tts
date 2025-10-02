@@ -146,9 +146,15 @@ def render_video(work_dir, params):
 def process_job(job):
     """Process a single rendering job"""
     print("🎬 Video Worker: Processing job...")
+    print(f"📦 Raw job structure: {json.dumps(job, indent=2)[:500]}")
 
-    payload = job["input"]
-    job_id = payload["job_id"]
+    # Handle different RunPod input structures
+    if "input" in job:
+        payload = job["input"]
+    else:
+        payload = job
+
+    job_id = payload.get("job_id", "unknown")
     params = payload.get("params", {})
     inputs = payload["inputs"]
     output = payload["output"]
