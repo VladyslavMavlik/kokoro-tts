@@ -1,0 +1,55 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build: .
+    restart: unless-stopped
+    environment:
+      - PORT=8080
+      - USE_QUEUE=1
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - KOKORO_MODEL_ID=onnx-community/Kokoro-82M-v1.0-ONNX
+      - KOKORO_DTYPE=q8
+      - KOKORO_DEVICE=cpu
+      - API_KEY=${API_KEY}
+      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
+      - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
+      - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
+      - R2_BUCKET=${R2_BUCKET}
+    ports: ["8080:8080"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  worker:
+    build: .
+    command: ["node", "worker/worker.js"]
+    restart: unless-stopped
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - KOKORO_MODEL_ID=onnx-community/Kokoro-82M-v1.0-ONNX
+      - KOKORO_DTYPE=q8
+      - KOKORO_DEVICE=cpu
+      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
+      - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
+      - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
+      - R2_BUCKET=${R2_BUCKET}
+    depends_on:
+      redis:
+        condition: service_healthy

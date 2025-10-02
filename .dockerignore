@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log
+.env
+.env.local
+temp
+*.md
+.git
+.gitignore
+.DS_Store
+.claude
+out
+src
+remotion.config.ts
+tsconfig.json
+*.wav
+*.mp3

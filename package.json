@@ -1,0 +1,35 @@
+{
+  "name": "kokoro-tts",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "preview": "remotion preview src/Root.tsx",
+    "render": "remotion render src/Root.tsx HandheldSlideshow out/video.mp4",
+    "start": "node --env-file=.env server/api.js",
+    "dev:api": "node --env-file=.env server/api.js",
+    "dev:video": "node --env-file=.env server/video-orchestrator.js",
+    "worker": "node --env-file=.env worker/worker.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.709.0",
+    "@aws-sdk/s3-request-presigner": "^3.709.0",
+    "@remotion/cli": "^4.0.350",
+    "bullmq": "^5.29.3",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "ioredis": "^5.4.2",
+    "kokoro-js": "^1.2.1",
+    "mime": "^4.0.4",
+    "multer": "^1.4.5-lts.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "remotion": "^4.0.350",
+    "typescript": "^5.9.2"
+  },
+  "type": "module",
+  "description": ""
+}
