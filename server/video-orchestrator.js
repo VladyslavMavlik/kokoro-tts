@@ -114,8 +114,14 @@ app.post('/jobs', async (req, res) => {
       progress: []
     });
 
-    // Submit to RunPod
+    // Submit to RunPod (async mode)
     console.log(`🚀 Submitting to RunPod endpoint: ${RUNPOD_ENDPOINT_ID}`);
+    console.log(`📦 Payload preview:`, JSON.stringify({
+      frames: inputs.frames?.length || 0,
+      audio: !!inputs.audio,
+      person: !!inputs.person,
+      overlays: inputs.overlays?.length || 0
+    }));
 
     const runpodResponse = await fetch(`https://api.runpod.ai/v2/${RUNPOD_ENDPOINT_ID}/run`, {
       method: 'POST',

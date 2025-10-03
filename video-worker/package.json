@@ -1,0 +1,12 @@
+{
+  "name": "kokoro-video-worker",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@remotion/cli": "^4.0.350",
+    "remotion": "^4.0.350",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "runpod-sdk": "^1.0.0"
+  }
+}

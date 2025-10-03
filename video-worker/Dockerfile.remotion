@@ -1,0 +1,35 @@
+# Multi-stage build for video rendering with Remotion
+FROM node:20-bookworm AS base
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    python3-venv \
+    ffmpeg \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages
+RUN pip3 install --no-cache-dir --break-system-packages \
+    faster-whisper \
+    pysubs2 \
+    requests
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install Node dependencies
+RUN npm install --production
+
+# Copy application code
+COPY build_slideshow.js ./
+COPY create_sync_srt.js ./
+COPY generate_ass_subs.py ./
+COPY remotion-worker.js ./
+
+# Set entrypoint
+ENTRYPOINT ["node", "/app/remotion-worker.js"]
