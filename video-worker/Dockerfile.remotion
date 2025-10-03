@@ -19,17 +19,19 @@ RUN pip3 install --no-cache-dir --break-system-packages \
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files from video-worker directory
+COPY video-worker/package*.json ./
 
 # Install Node dependencies
 RUN npm install --production
 
-# Copy application code
+# Copy scripts from root directory
 COPY build_slideshow.js ./
 COPY create_sync_srt.js ./
 COPY generate_ass_subs.py ./
-COPY remotion-worker.js ./
+
+# Copy worker from video-worker directory
+COPY video-worker/remotion-worker.js ./
 
 # Set entrypoint
 ENTRYPOINT ["node", "/app/remotion-worker.js"]
