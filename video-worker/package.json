@@ -7,6 +7,9 @@
     "remotion": "^4.0.350",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "runpod-sdk": "^1.0.0"
+    "runpod-sdk": "^1.0.0",
+    "typescript": "^5.3.3",
+    "@types/react": "^18.2.0",
+    "@types/node": "^20.0.0"
   }
 }

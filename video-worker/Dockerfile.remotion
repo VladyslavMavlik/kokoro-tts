@@ -20,8 +20,8 @@ WORKDIR /app
 # Copy package files from video-worker directory
 COPY video-worker/package*.json ./
 
-# Install Node dependencies
-RUN npm install --production
+# Install Node dependencies (including dev dependencies for Remotion)
+RUN npm install
 
 # Copy scripts from root directory
 COPY build_slideshow.js ./
