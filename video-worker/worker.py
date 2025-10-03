@@ -133,12 +133,17 @@ def render_video(work_dir, params, frame_ext=".jpg"):
         bufsize=1
     )
 
+    # Collect all output
+    ffmpeg_output = []
     for line in proc.stdout:
         print(line.rstrip())
+        ffmpeg_output.append(line)
 
     code = proc.wait()
     if code != 0:
-        raise RuntimeError(f"FFmpeg exited with code {code}")
+        # Include last 20 lines of output in error
+        error_context = ''.join(ffmpeg_output[-20:]) if len(ffmpeg_output) > 20 else ''.join(ffmpeg_output)
+        raise RuntimeError(f"FFmpeg exited with code {code}. Last output:\n{error_context}")
 
     print(f"✅ Video rendered: {output_file}")
     return output_file
