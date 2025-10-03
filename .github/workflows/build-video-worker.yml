@@ -7,6 +7,11 @@ on:
       - master
     paths:
       - 'video-worker/**'
+      - 'src/**'
+      - 'build_*.js'
+      - 'create_*.js'
+      - 'remotion.config.ts'
+      - 'tsconfig.json'
       - '.github/workflows/build-video-worker.yml'
   workflow_dispatch:
 

@@ -9,8 +9,6 @@ temp
 .DS_Store
 .claude
 out
-src
-remotion.config.ts
-tsconfig.json
 *.wav
 *.mp3
+# Don't ignore src, remotion.config.ts, tsconfig.json - needed for Remotion build
