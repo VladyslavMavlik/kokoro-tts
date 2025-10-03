@@ -11,10 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python packages
+# Install Python packages (if needed for whisper)
 RUN pip3 install --no-cache-dir --break-system-packages \
-    faster-whisper \
-    pysubs2 \
     requests
 
 WORKDIR /app
@@ -28,7 +26,7 @@ RUN npm install --production
 # Copy scripts from root directory
 COPY build_slideshow.js ./
 COPY create_sync_srt.js ./
-COPY generate_ass_subs.py ./
+COPY create_remotion_slideshow.js ./
 
 # Copy worker from video-worker directory
 COPY video-worker/remotion-worker.js ./
