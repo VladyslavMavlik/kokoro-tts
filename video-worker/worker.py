@@ -87,26 +87,36 @@ def render_video(work_dir, params, frame_ext=".jpg"):
 
     # Video filter chain (CPU only)
     w, h = resolution.split('x')
-    vf = [f"scale={w}:{h}"]
 
     # Add person overlay if exists (CPU only)
+    person_input_idx = None
     if person_file.exists():
         print("👤 Adding person overlay")
+        person_input_idx = 1  # person will be input #1
         cmd += ["-i", str(person_file)]
-        w, h = resolution.split('x')
-        vf = [
-            f"scale={w}:{h}",
-            "overlay=(W-w)/2:(H-h)/2",
-            "format=yuv420p"
-        ]
 
     # Add audio if exists
+    audio_input_idx = None
     if audio_file.exists():
         print("🎵 Adding audio track")
+        audio_input_idx = person_input_idx + 1 if person_input_idx else 1
         cmd += ["-i", str(audio_file), "-shortest"]
 
-    # Add video filters
-    cmd += ["-vf", ",".join(vf)]
+    # Build filter chain
+    if person_input_idx is not None:
+        # Use filter_complex for overlay
+        cmd += [
+            "-filter_complex",
+            f"[0:v]scale={w}:{h}[scaled];[scaled][1:v]overlay=(W-w)/2:(H-h)/2,format=yuv420p[out]",
+            "-map", "[out]"
+        ]
+        if audio_input_idx:
+            cmd += ["-map", f"{audio_input_idx}:a"]
+    else:
+        # Simple scale without overlay
+        cmd += ["-vf", f"scale={w}:{h},format=yuv420p"]
+        if audio_input_idx:
+            cmd += ["-map", "0:v", "-map", f"{audio_input_idx}:a"]
 
     # Video encoding settings (CPU libx264)
     cmd += [
@@ -182,29 +192,29 @@ def process_job(job):
 
     post_status(progress_url, {"percent": 10, "message": "Downloading inputs..."})
 
-    # Download frames - detect actual format from content-type
-    frame_ext = None
-    for idx, url in enumerate(inputs.get("frames", []), start=1):
-        # Download and detect real format
-        response = requests.head(url, timeout=10)
+    # Download frames - detect actual format from first frame
+    print("🔍 Detecting frame format...")
+    first_frame_url = inputs.get("frames", [])[0] if inputs.get("frames") else None
+
+    if first_frame_url:
+        response = requests.head(first_frame_url, timeout=10)
         content_type = response.headers.get('content-type', '').lower()
+        print(f"📋 First frame Content-Type: {content_type}")
 
-        # Determine extension based on actual content type
         if 'jpeg' in content_type or 'jpg' in content_type:
-            ext = ".jpg"
+            frame_ext = ".jpg"
         elif 'png' in content_type:
-            ext = ".png"
+            frame_ext = ".png"
         else:
-            # Fallback: try from URL
-            if url.lower().endswith(('.jpg', '.jpeg')):
-                ext = ".jpg"
-            else:
-                ext = ".png"
+            frame_ext = ".jpg"  # Default to jpg
 
-        if frame_ext is None:
-            frame_ext = ext  # Remember first frame extension
+        print(f"✅ Using extension: {frame_ext}")
+    else:
+        frame_ext = ".jpg"
 
-        download_file(url, frames_dir / f"{idx:06d}{ext}")
+    # Download all frames with detected extension
+    for idx, url in enumerate(inputs.get("frames", []), start=1):
+        download_file(url, frames_dir / f"{idx:06d}{frame_ext}")
 
     # Download audio (optional)
     audio_url = inputs.get("audio")
