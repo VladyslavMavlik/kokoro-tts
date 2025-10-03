@@ -73,18 +73,10 @@ def render_video(work_dir, params, frame_ext=".jpg"):
     print(f"🎬 Rendering {len(frame_files)} frames at {fps}fps, resolution {resolution}")
 
     # Build FFmpeg command
-    # Try GPU encoding first, fallback to CPU if fails
-    use_gpu = codec == "h264_nvenc"
+    # Disable GPU for now - FFmpeg doesn't have NVENC/NPP filters
+    use_gpu = False  # Force CPU encoding until we fix FFmpeg build
 
     cmd = ["ffmpeg", "-y"]
-
-    if use_gpu:
-        cmd += [
-            "-init_hw_device", "cuda=cu:0",
-            "-filter_hw_device", "cu",
-            "-hwaccel", "cuda",
-            "-hwaccel_output_format", "cuda"
-        ]
 
     # Input frames with correct extension
     input_pattern = f"%06d{frame_ext}"
@@ -93,35 +85,20 @@ def render_video(work_dir, params, frame_ext=".jpg"):
         "-i", str(frames_dir / input_pattern)
     ]
 
-    # Video filter chain
-    if use_gpu:
-        vf = [f"scale_npp={resolution}:interp_algo=lanczos"]
-    else:
-        # CPU fallback
-        w, h = resolution.split('x')
-        vf = [f"scale={w}:{h}"]
+    # Video filter chain (CPU only)
+    w, h = resolution.split('x')
+    vf = [f"scale={w}:{h}"]
 
-    # Add person overlay if exists
+    # Add person overlay if exists (CPU only)
     if person_file.exists():
         print("👤 Adding person overlay")
         cmd += ["-i", str(person_file)]
-        if use_gpu:
-            # GPU overlay
-            vf = [
-                f"scale_npp={resolution}:interp_algo=lanczos",
-                "hwdownload,format=rgba",
-                "overlay=(W-w)/2:(H-h)/2",  # Center overlay
-                "format=yuv420p",
-                "hwupload_cuda"
-            ]
-        else:
-            # CPU overlay
-            w, h = resolution.split('x')
-            vf = [
-                f"scale={w}:{h}",
-                "overlay=(W-w)/2:(H-h)/2",
-                "format=yuv420p"
-            ]
+        w, h = resolution.split('x')
+        vf = [
+            f"scale={w}:{h}",
+            "overlay=(W-w)/2:(H-h)/2",
+            "format=yuv420p"
+        ]
 
     # Add audio if exists
     if audio_file.exists():
@@ -131,25 +108,13 @@ def render_video(work_dir, params, frame_ext=".jpg"):
     # Add video filters
     cmd += ["-vf", ",".join(vf)]
 
-    # Video encoding settings
-    if use_gpu:
-        cmd += [
-            "-c:v", codec,
-            "-preset", "p7",
-            "-rc", "vbr_hq",
-            "-cq", "19",
-            "-b:v", "15M",
-            "-maxrate", "25M",
-            "-bufsize", "50M"
-        ]
-    else:
-        # CPU fallback (libx264)
-        cmd += [
-            "-c:v", "libx264",
-            "-preset", "medium",
-            "-crf", "23",
-            "-pix_fmt", "yuv420p"
-        ]
+    # Video encoding settings (CPU libx264)
+    cmd += [
+        "-c:v", "libx264",
+        "-preset", "fast",
+        "-crf", "23",
+        "-pix_fmt", "yuv420p"
+    ]
 
     # Add audio codec if audio exists
     if audio_file.exists():
@@ -212,14 +177,24 @@ def process_job(job):
 
     post_status(progress_url, {"percent": 10, "message": "Downloading inputs..."})
 
-    # Download frames
+    # Download frames - detect actual format from content-type
     frame_ext = None
     for idx, url in enumerate(inputs.get("frames", []), start=1):
-        # Detect extension from URL
-        if url.lower().endswith(".jpg") or url.lower().endswith(".jpeg"):
+        # Download and detect real format
+        response = requests.head(url, timeout=10)
+        content_type = response.headers.get('content-type', '').lower()
+
+        # Determine extension based on actual content type
+        if 'jpeg' in content_type or 'jpg' in content_type:
             ext = ".jpg"
-        else:
+        elif 'png' in content_type:
             ext = ".png"
+        else:
+            # Fallback: try from URL
+            if url.lower().endswith(('.jpg', '.jpeg')):
+                ext = ".jpg"
+            else:
+                ext = ".png"
 
         if frame_ext is None:
             frame_ext = ext  # Remember first frame extension
