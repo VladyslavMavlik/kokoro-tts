@@ -162,6 +162,32 @@ async function processJob(job) {
     console.log(`🎵 Audio path: ${audioPath || 'NONE'}`);
     console.log(`📝 Text path: ${textPath || 'NONE'}`);
 
+    // Verify files exist before running
+    if (audioPath) {
+        try {
+            const audioStats = await fs.stat(audioPath);
+            console.log(`✅ Audio file verified: ${audioStats.size} bytes at ${audioPath}`);
+        } catch (err) {
+            console.error(`❌ Audio file not found at ${audioPath}:`, err.message);
+        }
+    }
+
+    if (textPath) {
+        try {
+            const textStats = await fs.stat(textPath);
+            console.log(`✅ Text file verified: ${textStats.size} bytes at ${textPath}`);
+        } catch (err) {
+            console.error(`❌ Text file not found at ${textPath}:`, err.message);
+        }
+    }
+
+    try {
+        const framesStats = await fs.readdir(framesDir);
+        console.log(`✅ Frames directory contains ${framesStats.length} files`);
+    } catch (err) {
+        console.error(`❌ Frames directory error:`, err.message);
+    }
+
     try {
         const { stdout, stderr } = await exec(cmd, {
             maxBuffer: 64 * 1024 * 1024,
