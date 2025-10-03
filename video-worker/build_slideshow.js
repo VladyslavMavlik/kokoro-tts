@@ -285,65 +285,7 @@ function parseTimecode(timecode) {
 }
 
 
-// Функція для генерації ASS субтитрів з караоке-ефектом (підсвічування слів)
-async function generateAssSubtitles(audioPath, outputDir, wordsPerSubtitle = 5) {
-  try {
-    console.log("✨ Starting ASS subtitle generation with karaoke effect...");
-    console.log(`📂 Audio file: ${audioPath}`);
-    console.log(`📂 Output directory: ${outputDir}`);
-
-    // Перевіряємо чи існує python3
-    try {
-      await exec('which python3');
-      console.log("✅ Python3 found in system");
-    } catch (e) {
-      throw new Error("Python3 not found. Please install python3");
-    }
-
-    // Перевіряємо чи встановлені необхідні пакети
-    try {
-      await exec('python3 -c "import faster_whisper, pysubs2"');
-      console.log("✅ Required Python packages found (faster-whisper, pysubs2)");
-    } catch (e) {
-      console.error("❌ Missing Python packages!");
-      console.error("💡 Install with: pip3 install faster-whisper pysubs2");
-      throw new Error("Missing required Python packages: faster-whisper, pysubs2");
-    }
-
-    // Шлях до нашого Python скрипту
-    const scriptDir = path.dirname(new URL(import.meta.url).pathname);
-    const pythonScript = path.join(scriptDir, 'generate_ass_subs.py');
-
-    // Перевіряємо чи існує скрипт
-    await fs.access(pythonScript);
-    console.log("✅ ASS generation script found");
-
-    // Формуємо команду
-    const assPath = path.join(outputDir, path.basename(audioPath).replace(/\.[^.]+$/, ".ass"));
-    const generateCmd = `python3 "${pythonScript}" "${audioPath}" "${assPath}" --model base --device cpu --compute-type int8 --words-per-subtitle ${wordsPerSubtitle}`;
-
-    console.log(`📋 Running ASS generator...`);
-    console.log(`⚙️ Command: ${generateCmd}`);
-
-    const { stdout, stderr } = await exec(generateCmd);
-    if (stdout) console.log("📤 Output:", stdout);
-    if (stderr) console.log("⚠️ Stderr:", stderr);
-
-    // Перевіряємо чи файл створено
-    await fs.access(assPath);
-    console.log("✅ ASS subtitles with karaoke effect generated successfully!");
-    console.log(`📝 Output: ${assPath}`);
-
-    return assPath;
-  } catch (error) {
-    console.error("❌ Failed to generate ASS subtitles:", error.message);
-    console.error("💡 Make sure faster-whisper and pysubs2 are installed:");
-    console.error("   pip3 install faster-whisper pysubs2");
-    return null;
-  }
-}
-
-// Функція для автоматичного створення субтитрів з аудіо (старий метод - fallback)
+// Функція для автоматичного створення субтитрів з аудіо
 async function generateSubtitlesFromAudio(audioPath, outputDir) {
   try {
     console.log("🎤 Starting subtitle generation from audio...");
@@ -481,9 +423,9 @@ async function main() {
     await fs.writeFile(subtitleFile, srtContent);
     console.log("✅ Created subtitles from text file:", subtitleFile);
   } else {
-    // Автоматична генерація субтитрів з аудіо (новий метод з ASS караоке-ефектом!)
-    console.log("✨ No explicit subtitle source - generating ASS subtitles with karaoke effect...");
-    subtitleFile = await generateAssSubtitles(args.audio, tmpDir, 6); // 6 слів на субтитр (Jumper 22)
+    // Автоматична генерація субтитрів з аудіо
+    console.log("🎤 No explicit subtitle source - attempting audio-to-subtitle generation...");
+    subtitleFile = await generateSubtitlesFromAudio(args.audio, tmpDir);
 
     // Якщо не вдалося згенерувати з аудіо, шукаємо текстові файли
     if (!subtitleFile) {
@@ -638,13 +580,10 @@ async function main() {
 
   // Додаємо субтитри якщо є
   if (subtitleFile) {
-    // ВАЖЛИВО: НЕ використовуємо force_style для ASS файлів!
-    // ASS файли мають свої власні стилі та караоке-ефекти
-    // force_style перезапише всі теги \k, \c, \t і зламає караоке
-    const subtitleFilter = `subtitles='${subtitleFile}'`;
+    const subtitleFilter = `subtitles='${subtitleFile}':force_style='FontName=${args.font_name},FontSize=${args.font_size},PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&,BorderStyle=1,Outline=1,Shadow=1,Bold=0,WrapStyle=2,MarginV=40'`;
     filterComplex.push(`${currentStream}${subtitleFilter},fps=30[v]`);
     currentStream = '[v]';
-    console.log("📝 ASS subtitles with karaoke effect will be applied");
+    console.log("📝 Subtitles will be applied over everything, downsampled to 30fps");
   } else {
     // Якщо немає субтитрів, тільки downsample до 30fps
     filterComplex.push(`${currentStream}fps=30[v]`);
