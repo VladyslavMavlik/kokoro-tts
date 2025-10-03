@@ -25,8 +25,14 @@ RUN npm install --production
 
 # Copy scripts from root directory
 COPY build_slideshow.js ./
+COPY build_handheld_video.js ./
 COPY create_sync_srt.js ./
 COPY create_remotion_slideshow.js ./
+COPY remotion.config.ts ./
+COPY tsconfig.json ./
+
+# Copy Remotion components
+COPY src ./src/
 
 # Copy worker from video-worker directory
 COPY video-worker/remotion-worker.js ./
