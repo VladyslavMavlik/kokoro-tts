@@ -180,10 +180,10 @@ async function collectChannelInputs(channel) {
 async function prepareOutput(channel, jobId) {
   const finishKey = `Channels/${channel}/finish/final-${jobId}.mp4`;
 
-  const putUrl = await getSignedPutUrl(finishKey, 'video/mp4', 7200); // 2 hours
-  const publicUrl = getPublicUrl(finishKey);
+  const put_url = await getSignedPutUrl(finishKey, 'video/mp4', 7200); // 2 hours
+  const public_url = getPublicUrl(finishKey);
 
-  return { putUrl, publicUrl, key: finishKey };
+  return { put_url, public_url, key: finishKey };
 }
 
 export {

@@ -524,6 +524,23 @@ async function main() {
     if (stderr) console.log("📤 Remotion stderr:", stderr);
 
     console.log("✅ Handheld motion video created successfully");
+
+    // Перевіряємо чи файл існує і який розмір
+    try {
+      const stats = await fs.stat(tmpVid);
+      console.log(`📊 Remotion output size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
+
+      // Перевіряємо тривалість
+      const { stdout: durationCheck } = await exec(`ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 "${tmpVid}"`);
+      const duration = parseFloat(durationCheck.trim());
+      console.log(`⏱️ Remotion video duration: ${duration.toFixed(2)}s (expected: ~${dur.toFixed(2)}s)`);
+
+      if (duration < dur * 0.8) {
+        console.warn(`⚠️ WARNING: Remotion video is too short! Expected ${dur}s but got ${duration}s`);
+      }
+    } catch (checkErr) {
+      console.error(`❌ Failed to verify Remotion output: ${checkErr.message}`);
+    }
   } catch (remotionError) {
     console.error("❌ Remotion failed, falling back to standard method:");
     console.error("Error message:", remotionError.message);
