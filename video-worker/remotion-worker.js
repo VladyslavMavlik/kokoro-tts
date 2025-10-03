@@ -100,15 +100,28 @@ async function processJob(job) {
     // Download audio
     let audioPath = null;
     if (inputs.audio) {
+        console.log(`🎵 Audio URL provided: ${inputs.audio.substring(0, 100)}...`);
         audioPath = path.join(workDir, 'audio.mp3');
         await downloadFile(inputs.audio, audioPath);
+
+        // Verify file exists
+        const audioStats = await fs.stat(audioPath);
+        console.log(`✅ Audio downloaded: ${audioStats.size} bytes`);
+    } else {
+        console.log(`⚠️ No audio URL in inputs!`);
     }
 
     // Download text for subtitles
     let textPath = null;
     if (inputs.text) {
+        console.log(`📝 Text URL provided: ${inputs.text.substring(0, 100)}...`);
         textPath = path.join(workDir, 'text.txt');
         await downloadFile(inputs.text, textPath);
+
+        const textStats = await fs.stat(textPath);
+        console.log(`✅ Text downloaded: ${textStats.size} bytes`);
+    } else {
+        console.log(`⚠️ No text URL in inputs!`);
     }
 
     // Download Fx overlays
@@ -142,17 +155,32 @@ async function processJob(job) {
     cmd += ` --w=1080 --h=1920`; // Vertical video
     cmd += ` --fps=30`;
 
-    console.log(`🚀 Running: ${cmd}`);
+    console.log(`🚀 Running build_slideshow.js`);
+    console.log(`📋 Full command: ${cmd}`);
+    console.log(`📁 Working directory: /app`);
+    console.log(`📁 Output path: ${outputPath}`);
+    console.log(`🎵 Audio path: ${audioPath || 'NONE'}`);
+    console.log(`📝 Text path: ${textPath || 'NONE'}`);
 
     try {
         const { stdout, stderr } = await exec(cmd, {
             maxBuffer: 64 * 1024 * 1024,
             cwd: '/app'
         });
+
+        console.log('--- build_slideshow.js OUTPUT START ---');
         console.log(stdout);
-        if (stderr) console.error(stderr);
+        console.log('--- build_slideshow.js OUTPUT END ---');
+
+        if (stderr) {
+            console.error('--- build_slideshow.js STDERR START ---');
+            console.error(stderr);
+            console.error('--- build_slideshow.js STDERR END ---');
+        }
     } catch (err) {
         console.error(`❌ Render failed: ${err.message}`);
+        console.error(`❌ Stderr: ${err.stderr}`);
+        console.error(`❌ Stdout: ${err.stdout}`);
         throw new Error(`build_slideshow.js failed: ${err.message}`);
     }
 
